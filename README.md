@@ -8,4 +8,5 @@ lance un train avec environ " ./isaaclab.sh --python scripts/reinforcement_learn
 
 nouveau projet " ./isaaclab.sh --new
 
+./isaaclab.sh --python scripts/reinforcement_learning/skrl/train.py --task=Isaac-Reach-UR10-v0 --num_envs=20
 
