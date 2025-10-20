@@ -13,7 +13,7 @@
 **/*.usda
 **/*.usdc
 **/*.usdz
-
+!/my_env/source/env_v1.usd
 # Python
 .DS_Store
 **/*.egg-info/
