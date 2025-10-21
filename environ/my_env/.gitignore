@@ -69,3 +69,10 @@ tests/
 
 # Docker history
 .isaac-lab-docker-history
+
+# UR10 workspace (except src)
+**/ur10/build/
+**/ur10/install/
+**/ur10/log/
+
+
