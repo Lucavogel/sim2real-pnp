@@ -1,0 +1,18 @@
+# Configuration pour le bridge CoppeliaSim
+
+# Noms des joints du robot UR (ordre important!)
+joint_names:
+  - shoulder_pan_joint
+  - shoulder_lift_joint
+  - elbow_joint
+  - wrist_1_joint
+  - wrist_2_joint
+  - wrist_3_joint
+
+# Fréquence de mise à jour (Hz)
+update_rate: 50.0
+
+# Paramètres de connexion CoppeliaSim
+coppeliasim:
+  host: "localhost"
+  port: 23000

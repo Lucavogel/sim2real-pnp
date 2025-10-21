@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="ur">
+
+  <!-- robot name parameter -->
+  <xacro:arg name="name" default="ur"/>
+  <!-- parameters -->
+  <xacro:arg name="prefix" default="" />
+
+  <xacro:include filename="$(find ur_moveit_config)/srdf/ur_macro.srdf.xacro"/>
+
+  <xacro:ur_srdf name="$(arg name)" prefix="$(arg prefix)"/>
+
+  <!-- VIRTUAL JOINT: Fixe le robot au world (référence fixe au sol) -->
+  <virtual_joint name="virtual_joint" type="fixed" parent_frame="world" child_link="$(arg prefix)base_link" />
+
+</robot>
