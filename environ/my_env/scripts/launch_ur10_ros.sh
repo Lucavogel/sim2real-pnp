@@ -13,6 +13,6 @@ source ~/miniconda3/etc/profile.d/conda.sh
 conda activate env_isaaclab
 
 #Lancer Isaac Lab
-cd ~/work2/IsaacLab
+cd ~/workspace/IsaacLab
 echo "   (Conda Python 3.11 avec ROS2 Humble)"
 ./isaaclab.sh -p ../sim2real-pnp/environ/my_env/scripts/zero_agent.py "$@"
