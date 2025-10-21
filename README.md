@@ -10,3 +10,4 @@ nouveau projet " ./isaaclab.sh --new
 
 ./isaaclab.sh --python scripts/reinforcement_learning/skrl/train.py --task=Isaac-Reach-UR10-v0 --num_envs=20
 
+python -m pip install -e source/<given-project-name>

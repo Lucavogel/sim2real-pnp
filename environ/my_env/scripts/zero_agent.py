@@ -115,7 +115,7 @@ def main():
     import omni.usd
     import omni.graph.core as og
 
-    usd_path = "/home/ajin/work2/sim2real-pnp/environ/my_env/source/env_v1.usd"
+    usd_path = "/home/ajin/workspace/sim2real-pnp/environ/my_env/source/env_v1.usd"
     print(f"[INFO] Loading USD file: {usd_path}")
     omni.usd.get_context().open_stage(usd_path)
     
