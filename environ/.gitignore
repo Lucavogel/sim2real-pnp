@@ -1,0 +1,7 @@
+**/build/*
+**/install/*
+**/log/*
+
+
+# leslaunch workspace (except src)
+**/*.sh
