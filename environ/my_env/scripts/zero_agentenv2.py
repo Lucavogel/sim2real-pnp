@@ -36,14 +36,11 @@ import isaaclab.sim as sim_utils
 from isaaclab.assets import Articulation
 from isaaclab.sim import SimulationContext
 from isaaclab_assets import UR10_CFG
-from isaaclab.sensors import Camera , CameraCfg 
 # ROS2 imports
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Header
-import os
-import imageio
 
 
 class JointStateBridge(Node):
@@ -117,7 +114,7 @@ def main():
     import omni.usd
     import omni.graph.core as og
 
-    usd_path = "/home/ajin/work2/sim2real-pnp/environ/my_env/source/env_v1.usd"
+    usd_path = "/home/ajin/work2/my_env/env_v3.usd"
     print(f"[INFO] Loading USD file: {usd_path}")
     omni.usd.get_context().open_stage(usd_path)
     
@@ -140,26 +137,6 @@ def main():
 
   
 
-    # camera_cfg = CameraCfg(
-    #         prim_path="/World/Origin2/Camera_SG2_OX03CC_5200_GMSL2_H60YA/Camera_SG2_OX03CC_5200_GMSL2_H60YA",
-    #         render_product_cfg=RenderProductCfg(
-    #         resolution=(640, 480),
-    #             use_gpu=True
-    #         ),update_period=0.1)
-    # camera = Camera(camera_cfg)
-
-    # Création d'une caméra attachée à ton prim dans le USD
-    camera_cfg = CameraCfg(
-        prim_path="/World/Origin2/Camera_SG2_OX03CC_5200_GMSL2_H60YA/Camera_SG2_OX03CC_5200_GMSL2_H60YA",
-        update_period=0.01,  # 100 Hz
-        height=1080,
-        width=1920,
-        data_types=["rgb"],
-        spawn=None,               # NE PAS recréer la caméra, elle existe déjà
-        offset=None               # hauteur de l’image en pixels
-        # spawn=sim_utils.PinholeCameraCfg(focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)) # ou ["rgb","depth"]          # hauteur de l’image en pixels
-    )
-    camera = Camera(cfg=camera_cfg)
 
     # Set camera view
     sim.set_camera_view([0.5, 0.0, 2.5], 
@@ -185,7 +162,16 @@ def main():
         0.0            # wrist_3_joint
     ]], device=ur10.device, dtype=torch.float32)
 
-
+    # Option 2: Ou en degrés (plus lisible)
+    # import math
+    # current_joint_pos = torch.tensor([[
+    #     math.radians(0),      # shoulder_pan
+    #     math.radians(-90),    # shoulder_lift
+    #     math.radians(90),     # elbow
+    #     math.radians(-90),    # wrist_1
+    #     math.radians(-90),    # wrist_2
+    #     math.radians(0)       # wrist_3
+    # ]], device=ur10.device, dtype=torch.float32)
 
     ur10.set_joint_position_target(current_joint_pos)
     ur10.write_data_to_sim()
@@ -230,10 +216,6 @@ def main():
     # Simulation loop
     count = 0
 
-    # ✅ Crée le dossier s'il n'existe pas
-    output_dir = "/home/ajin/work2/sim2real-pnp/environ/my_env/output/camera_image2"
-    os.makedirs(output_dir, exist_ok=True)
-
     try:
         while simulation_app.is_running() and rclpy.ok():
             # Appliquer la cible si elle existe
@@ -257,19 +239,6 @@ def main():
                     f"[{joint_pos_deg[0]:.1f}, {joint_pos_deg[1]:.1f}, {joint_pos_deg[2]:.1f}, "
                     f"{joint_pos_deg[3]:.1f}, {joint_pos_deg[4]:.1f}, {joint_pos_deg[5]:.1f}]")
 
-            # ✅ Capture et sauvegarde de l'image
-            if count % 500 == 0:
-                try:
-                    # Mise à jour de la caméra
-                    camera.update(dt=sim.get_physics_dt())
-                    rgb_image = camera.data.output["rgb"][0] 
-                    rgb_np = rgb_image.cpu().numpy()
-
-                    filename = os.path.join(output_dir, f"capture_{count:05d}.png")
-                    imageio.imwrite(filename, (rgb_np * 255).astype(np.uint8))
-                    print(f"[INFO] Image enregistrée : {filename}")
-                except Exception as e:
-                    print(f"[ERREUR CAMERA] {e}")
 
             count += 1
 
