@@ -1,0 +1,25 @@
+#!/bin/bash
+# TEMPLATE - Copier vers launch_ur10_executor.sh et personnaliser
+# cp launch_ur10_executor.sh.template launch_ur10_executor.sh
+
+echo "🤖 Lancement de Isaac Lab avec UR10 + Trajectoires..."
+echo ""
+
+# 1. Activer Conda Isaac Lab
+source ~/miniconda3/etc/profile.d/conda.sh
+conda activate env_isaaclab
+
+echo "✅ Configuration:"
+echo "   Python: $(python --version)"
+echo "   Conda env: $CONDA_DEFAULT_ENV"
+echo ""
+
+# 2. Lancer Isaac Lab
+cd ~/workspace/IsaacLab
+./isaaclab.sh -p ../sim2real-pnp/environ/my_env/scripts/Ur10_trajectory_executor.py --headless "$@"
+
+# Options disponibles:
+# --num_envs 1                  # Nombre d'environnements
+# --apply_delta                 # Activer corrections delta
+# --delta_std 0.01              # Écart-type des perturbations
+# --trajectories_dir path/      # Chemin vers trajectoires .npy

@@ -75,6 +75,6 @@ tests/
 **/install/*
 **/log/*
 
-
-# leslaunch workspace (except src)
-**/*.sh
+# Launch scripts personnels (garder seulement les .template)
+!**/launch_*.sh
+!**/launch_*.sh.template
