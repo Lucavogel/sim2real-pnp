@@ -76,5 +76,18 @@ tests/
 **/log/*
 
 # Launch scripts personnels (garder seulement les .template)
-!**/launch_*.sh
+**/launch_*.sh
 !**/launch_*.sh.template
+
+# Trajectoires générées (fichiers .npy lourds)
+**/trajectories/
+
+# Fichiers temporaires de test
+**/test_integration.sh
+
+# Fichiers TF debug
+**/*.gv
+**/*.pdf
+
+# Dépôts Git externes (submodules non gérés)
+environ/ur10/src/apriltag_ros/

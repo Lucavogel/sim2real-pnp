@@ -26,10 +26,13 @@ class GroundPlanePublisher(Node):
         # Attendre que le publisher soit prêt
         time.sleep(1.0)
         
-        # Publier le plan de sol
+        # Publier le plan de sol immédiatement
         self.publish_ground_plane()
         
-        self.get_logger().info('✓ Plan de sol ajouté à la scène MoveIt')
+        # Timer pour republier périodiquement (toutes les 2 secondes)
+        self.create_timer(5.0, self.publish_ground_plane)
+        
+        self.get_logger().info('✅ Plan de sol publié (republication toutes les 2s)')
         
     def publish_ground_plane(self):
         """Crée et publie un objet de collision représentant le sol"""
@@ -46,9 +49,9 @@ class GroundPlanePublisher(Node):
         
         # Position du sol (juste en dessous de z=0)
         pose = Pose()
-        pose.position.x = 0.0
-        pose.position.y = 0.0
-        pose.position.z = -0.01  # 1cm en dessous du plan z=0
+        pose.position.x = float(0.0)
+        pose.position.y = float(0.0)
+        pose.position.z = float(-0.01)  # 5cm en dessous du plan z=0 (float)
         pose.orientation.w = 1.0
         
         # Ajouter à l'objet
@@ -63,18 +66,19 @@ class GroundPlanePublisher(Node):
         
         # Publier
         self.scene_pub.publish(scene)
-        self.get_logger().info(f'Plan de sol publié: {box.dimensions[0]}m x {box.dimensions[1]}m à z={pose.position.z}m')
-
 
 def main(args=None):
     rclpy.init(args=args)
     node = GroundPlanePublisher()
     
-    # Garder le node actif un moment pour s'assurer que le message est reçu
-    rclpy.spin_once(node, timeout_sec=2.0)
-    
-    node.destroy_node()
-    rclpy.shutdown()
+    # Garder le node actif pour continuer à publier
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        node.get_logger().info('Arrêt demandé...')
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

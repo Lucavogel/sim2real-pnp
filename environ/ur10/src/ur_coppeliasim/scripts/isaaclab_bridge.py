@@ -30,12 +30,17 @@ from isaaclab.app import AppLauncher
 # Create argparser for Isaac Lab
 parser = argparse.ArgumentParser(description="Isaac Lab Bridge for ROS2/MoveIt2")
 parser.add_argument("--device", type=str, default="cuda:0", help="Device to run Isaac Lab on")
+
+# Add custom args for stability
+parser.add_argument("--width", type=int, default=640, help="Window width (lower for less VRAM)")
+parser.add_argument("--height", type=int, default=480, help="Window height (lower for less VRAM)")
+
 AppLauncher.add_app_launcher_args(parser)
 
 # Parse arguments (will be set by launch file or defaults)
 args_cli, unknown = parser.parse_known_args()
 
-# Launch Isaac Sim/Lab application
+# Launch Isaac Sim/Lab application with reduced resolution
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
@@ -114,8 +119,12 @@ class IsaacLabBridge(Node):
     def setup_isaac_lab(self):
         """Configure la simulation Isaac Lab avec le robot UR10"""
         try:
-            # Créer le contexte de simulation
-            sim_cfg = sim_utils.SimulationCfg(dt=0.01, device=args_cli.device)
+            # Créer le contexte de simulation avec dt plus grand pour réduire la charge
+            sim_cfg = sim_utils.SimulationCfg(
+                dt=0.02,  # Augmenté de 0.01 à 0.02 pour réduire la fréquence
+                device=args_cli.device,
+                render_interval=4  # Render moins souvent
+            )
             self.sim = sim_utils.SimulationContext(sim_cfg)
             
             # Configurer la vue de la caméra
@@ -248,6 +257,9 @@ class IsaacLabBridge(Node):
                 if wait_duration > 0:
                     self.step_simulation(wait_duration)
             
+            # LOG DE LA POSITION/ORIENTATION FINALE
+            self.log_final_pose()
+            
             self.get_logger().info('✅ Trajectoire exécutée avec succès!')
             
             result = FollowJointTrajectory.Result()
@@ -297,6 +309,38 @@ class IsaacLabBridge(Node):
             
             # Update robot state
             self.robot.update(dt)
+    
+    def log_final_pose(self):
+        """Log la position et orientation finale de l'end-effector (tool0)"""
+        if not self.isaac_ready or self.robot is None:
+            return
+        
+        try:
+            # Récupérer la pose du body "tool0" 
+            # Isaac Lab stocke les poses dans robot.data.body_pos_w et body_quat_w
+            # Il faut trouver l'index du body "tool0"
+            
+            # Alternative: utiliser les données des bodies
+            body_names = self.robot.body_names
+            if "tool0" in body_names:
+                tool0_idx = body_names.index("tool0")
+                
+                # Position (world frame) [num_instances, num_bodies, 3]
+                position = self.robot.data.body_pos_w[0, tool0_idx].cpu().numpy()
+                
+                # Orientation (quaternion wxyz) [num_instances, num_bodies, 4]
+                quaternion = self.robot.data.body_quat_w[0, tool0_idx].cpu().numpy()
+                
+                self.get_logger().info(
+                    f'📍 POSE FINALE tool0:\n'
+                    f'   Position (x, y, z): [{position[0]:.6f}, {position[1]:.6f}, {position[2]:.6f}] m\n'
+                    f'   Orientation (w, x, y, z): [{quaternion[0]:.6f}, {quaternion[1]:.6f}, {quaternion[2]:.6f}, {quaternion[3]:.6f}]'
+                )
+            else:
+                self.get_logger().warn('⚠️ Body "tool0" non trouvé dans le robot')
+                
+        except Exception as e:
+            self.get_logger().error(f'Erreur lecture pose finale: {e}')
     
     def run_isaac_loop(self):
         """Boucle principale Isaac Lab (dans un thread séparé)"""

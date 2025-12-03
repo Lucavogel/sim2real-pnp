@@ -24,13 +24,12 @@ install(DIRECTORY
 # Install Python scripts
 install(PROGRAMS
   scripts/coppeliasim_bridge.py
-  scripts/test_movement.py
-  scripts/test_simple_movement.py
   scripts/add_ground_plane.py
   scripts/add_obstacle.py
   scripts/isaaclab_bridge.py
   scripts/simple_isaaclab_test.py
-  scripts/test_isaaclab_moveit.py
+  scripts/apriltag_visualizer.py
+  scripts/apriltag_auto_mover.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

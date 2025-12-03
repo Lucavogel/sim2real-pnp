@@ -152,7 +152,7 @@ class CoppeliaSimBridge(Node):
         
         # Timer pour publier les joint states
         self.create_timer(
-            1.0 / self.update_rate,
+            2.0 / self.update_rate,
             self.publish_joint_states,
             callback_group=self.callback_group
         )

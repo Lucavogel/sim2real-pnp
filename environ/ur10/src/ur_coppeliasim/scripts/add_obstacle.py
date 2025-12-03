@@ -16,14 +16,30 @@ class ObstaclePublisher(Node):
     def __init__(self):
         super().__init__('obstacle_publisher')
         
-        # Paramètres de l'obstacle
-        self.declare_parameter('obstacle_x', 0.7)  # Distance devant le robot (m)
-        self.declare_parameter('obstacle_y', 10.0)  # Position latérale (m)
+        # Paramètres de l'obstacle 1
+        self.declare_parameter('obstacle_x', 0.8)  # Distance devant le robot (m)
+        self.declare_parameter('obstacle_y', 0.55)  # Position latérale (m)
         self.declare_parameter('obstacle_z', 0.3)  # Hauteur du centre (m)
-        self.declare_parameter('obstacle_width_x', 0.1)  # LONGUEUR dans le sens X (devant/derrière le robot) (m)
-        self.declare_parameter('obstacle_length_y', 0.1)  # Largeur dans le sens Y (perpendiculaire) (m)
-        self.declare_parameter('obstacle_height', 0.6)  # Hauteur de l'obstacle (m)
+        self.declare_parameter('obstacle_size_x', 1.5)  # Largeur dans l'axe X du robot (m)
+        self.declare_parameter('obstacle_size_y', 0.1)  # LONGUEUR dans l'axe Y (perpendiculaire, longue!) (m)
+        self.declare_parameter('obstacle_height', 0.8)  # Hauteur de l'obstacle (m)
         
+        # Paramètres de l'obstacle 2
+        self.declare_parameter('obstacle2_x', 0.6)  # Distance devant le robot (m)
+        self.declare_parameter('obstacle2_y', -0.55)  # Position latérale (m)
+        self.declare_parameter('obstacle2_z', 0.3)  # Hauteur du centre (m)
+        self.declare_parameter('obstacle2_size_x', 1.5)  # Largeur dans l'axe X du robot (m)
+        self.declare_parameter('obstacle2_size_y', 0.1)  # LONGUEUR dans l'axe Y (m)
+        self.declare_parameter('obstacle2_height', 0.8)  # Hauteur de l'obstacle (m)
+        
+        # Paramètres de l'obstacle 3 (nouveau)
+        self.declare_parameter('obstacle3_x', 0.6)  # Distance devant le robot (m)
+        self.declare_parameter('obstacle3_y', 0.0)  # Position latérale (m)
+        self.declare_parameter('obstacle3_z', 1.1)  # Hauteur du centre (m)
+        self.declare_parameter('obstacle3_size_x', 1.7)  # Largeur dans l'axe X du robot (m)
+        self.declare_parameter('obstacle3_size_y', 1.0)  # LONGUEUR dans l'axe Y (m)
+        self.declare_parameter('obstacle3_height', 0.1)  # Hauteur de l'obstacle (m)
+
         # Publisher pour la scène de planification
         self.scene_pub = self.create_publisher(
             PlanningScene,
@@ -34,68 +50,128 @@ class ObstaclePublisher(Node):
         # Attendre que le publisher soit prêt
         time.sleep(1.0)
         
-        # Publier l'obstacle
+        # Publier l'obstacle immédiatement
         self.publish_obstacle()
         
-        self.get_logger().info('✓ Obstacle rectangulaire ajouté à la scène MoveIt')
+        # Timer pour republier périodiquement (toutes les 2 secondes)
+        self.create_timer(5.0, self.publish_obstacle)
+        
+        
         
     def publish_obstacle(self):
-        """Crée et publie un obstacle rectangulaire (long dans le sens X, devant/derrière le robot)"""
-        
-        # Récupérer les paramètres
-        x = self.get_parameter('obstacle_x').value
-        y = self.get_parameter('obstacle_y').value
-        z = self.get_parameter('obstacle_z').value
-        width_x = self.get_parameter('obstacle_width_x').value
-        length_y = self.get_parameter('obstacle_length_y').value
-        height = self.get_parameter('obstacle_height').value
-        
-        # Créer l'objet de collision
-        collision_object = CollisionObject()
-        collision_object.header.frame_id = 'base_link'  # Relatif à la base du robot
-        collision_object.id = 'obstacle_box'
-        
-        # Définir la forme (une boîte rectangulaire)
-        box = SolidPrimitive()
-        box.type = SolidPrimitive.BOX
-        # Format: [dimension_X, dimension_Y, hauteur_Z]
-        # X = LONG devant/derrière le robot, Y = fin perpendiculaire, Z = hauteur
-        box.dimensions = [width_x, length_y, height]
-        
-        # Position de l'obstacle
-        pose = Pose()
-        pose.position.x = x
-        pose.position.y = y
-        pose.position.z = z
-        pose.orientation.w = 1.0
-        
-        # Ajouter à l'objet
-        collision_object.primitives.append(box)
-        collision_object.primitive_poses.append(pose)
-        collision_object.operation = CollisionObject.ADD
+        """Crée et publie des obstacles rectangulaires"""
         
         # Créer le message de scène
         scene = PlanningScene()
-        scene.world.collision_objects.append(collision_object)
         scene.is_diff = True  # C'est une mise à jour incrémentale
         
-        # Publier
+        # ===== OBSTACLE 1 =====
+        x = self.get_parameter('obstacle_x').value
+        y = self.get_parameter('obstacle_y').value
+        z = self.get_parameter('obstacle_z').value
+        size_x = self.get_parameter('obstacle_size_x').value
+        size_y = self.get_parameter('obstacle_size_y').value
+        height = self.get_parameter('obstacle_height').value
+
+        
+        collision_object1 = CollisionObject()
+        collision_object1.header.frame_id = 'base_link'
+        collision_object1.id = 'obstacle_box_1'
+        
+        box1 = SolidPrimitive()
+        box1.type = SolidPrimitive.BOX
+        box1.dimensions = [size_x, size_y, height]
+        
+        pose1 = Pose()
+        pose1.position.x = x
+        pose1.position.y = y
+        center_z = max(z, height / 2.0)
+        pose1.position.z = center_z
+        pose1.orientation.w = 1.0
+        
+        collision_object1.primitives.append(box1)
+        collision_object1.primitive_poses.append(pose1)
+        collision_object1.operation = CollisionObject.ADD
+        
+        scene.world.collision_objects.append(collision_object1)
+        
+        # ===== OBSTACLE 2 =====
+        x2 = self.get_parameter('obstacle2_x').value
+        y2 = self.get_parameter('obstacle2_y').value
+        z2 = self.get_parameter('obstacle2_z').value
+        size_x2 = self.get_parameter('obstacle2_size_x').value
+        size_y2 = self.get_parameter('obstacle2_size_y').value
+        height2 = self.get_parameter('obstacle2_height').value
+
+   
+        
+        collision_object2 = CollisionObject()
+        collision_object2.header.frame_id = 'base_link'
+        collision_object2.id = 'obstacle_box_2'
+        
+        box2 = SolidPrimitive()
+        box2.type = SolidPrimitive.BOX
+        box2.dimensions = [size_x2, size_y2, height2]
+        
+        pose2 = Pose()
+        pose2.position.x = x2
+        pose2.position.y = y2
+        center_z2 = max(z2, height2 / 2.0)
+        pose2.position.z = center_z2
+        pose2.orientation.w = 1.0
+        
+        collision_object2.primitives.append(box2)
+        collision_object2.primitive_poses.append(pose2)
+        collision_object2.operation = CollisionObject.ADD
+        
+        scene.world.collision_objects.append(collision_object2)
+        
+        # ===== OBSTACLE 3 =====
+        x3 = self.get_parameter('obstacle3_x').value
+        y3 = self.get_parameter('obstacle3_y').value
+        z3 = self.get_parameter('obstacle3_z').value
+        size_x3 = self.get_parameter('obstacle3_size_x').value
+        size_y3 = self.get_parameter('obstacle3_size_y').value
+        height3 = self.get_parameter('obstacle3_height').value
+
+        collision_object3 = CollisionObject()
+        collision_object3.header.frame_id = 'base_link'
+        collision_object3.id = 'obstacle_box_3'
+
+        box3 = SolidPrimitive()
+        box3.type = SolidPrimitive.BOX
+        box3.dimensions = [size_x3, size_y3, height3]
+
+        pose3 = Pose()
+        pose3.position.x = x3
+        pose3.position.y = y3
+        center_z3 = max(z3, height3 / 2.0)
+        pose3.position.z = center_z3
+        pose3.orientation.w = 1.0
+
+        collision_object3.primitives.append(box3)
+        collision_object3.primitive_poses.append(pose3)
+        collision_object3.operation = CollisionObject.ADD
+
+        scene.world.collision_objects.append(collision_object3)
+
+        # Publier la scène avec les 3 obstacles
         self.scene_pub.publish(scene)
-        self.get_logger().info(
-            f'Obstacle rectangulaire publié: {width_x:.2f}m (X-long) x {length_y:.2f}m (Y-fin) x {height:.2f}m (Z) '
-            f'à position (x={x:.2f}, y={y:.2f}, z={z:.2f})'
-        )
+
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = ObstaclePublisher()
     
-    # Garder le node actif un moment pour s'assurer que le message est reçu
-    rclpy.spin_once(node, timeout_sec=2.0)
-    
-    node.destroy_node()
-    rclpy.shutdown()
+    # Garder le node actif pour continuer à publier
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        node.get_logger().info('Arrêt demandé...')
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

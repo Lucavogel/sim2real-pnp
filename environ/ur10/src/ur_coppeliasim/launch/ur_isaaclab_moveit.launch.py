@@ -83,6 +83,41 @@ def generate_launch_description():
             description="Chemin vers IsaacLab installation",
         )
     )
+
+    # Nouveau argument pour activer/désactiver AprilTag
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "enable_apriltag",
+            default_value="true",
+            description="Activer la détection AprilTag (les nodes sont lancés, pas de second RViz)",
+        )
+    )
+    
+    # Argument pour activer/désactiver le mouvement automatique entre tags
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "auto_move_tags",
+            default_value="true",
+            description="Déplacer automatiquement le robot entre les AprilTags détectés",
+        )
+    )
+    
+    # Paramètres pour le mouvement automatique
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "move_delay",
+            default_value="10.0",
+            description="Délai en secondes entre les mouvements automatiques",
+        )
+    )
+    
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "z_offset",
+            default_value="0.10",
+            description="Offset vertical au-dessus du tag (en mètres)",
+        )
+    )
     
     # Configuration
     ur_type = LaunchConfiguration("ur_type")
@@ -90,6 +125,10 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     add_obstacle = LaunchConfiguration("add_obstacle")
     isaaclab_path = LaunchConfiguration("isaaclab_path")
+    enable_apriltag = LaunchConfiguration("enable_apriltag")
+    auto_move_tags = LaunchConfiguration("auto_move_tags")
+    move_delay = LaunchConfiguration("move_delay")
+    z_offset = LaunchConfiguration("z_offset")
     
     # Chemin du fichier de configuration des contrôleurs
     controllers_file = PathJoinSubstitution([
@@ -173,6 +212,55 @@ def generate_launch_description():
             "controllers_file": controllers_file,
         }.items(),
     )
+
+    # Chemin fichier config AprilTag (dans le package ur_coppeliasim/config)
+    apriltag_config = PathJoinSubstitution([
+        FindPackageShare("ur_coppeliasim"),
+        "config",
+        "apriltag_config.yaml"
+    ])
+
+    # Nodes AprilTag (sans lancer un second RViz)
+    apriltag_node = Node(
+        package='apriltag_ros',
+        executable='apriltag_node',
+        name='apriltag_detector',
+        parameters=[apriltag_config],
+        remappings=[
+            ('image_rect', '/rgb'),
+            ('camera_info', '/camera_info'),
+        ],
+        output='screen',
+        condition=IfCondition(enable_apriltag),
+    )
+
+    visualizer_node = Node(
+        package='ur_coppeliasim',
+        executable='apriltag_visualizer.py',
+        name='apriltag_visualizer',
+        output='screen',
+        condition=IfCondition(enable_apriltag),
+        parameters=[
+            {"use_pnp_fallback": True},   # active le fallback solvePnP
+            {"tag_size": 0.08},           # taille du tag en m
+        ],
+    )
+    
+    # Node pour déplacer automatiquement le robot entre les AprilTags
+    auto_mover_node = Node(
+        package='ur_coppeliasim',
+        executable='apriltag_auto_mover.py',
+        name='apriltag_auto_mover',
+        output='screen',
+        condition=IfCondition(auto_move_tags),
+        parameters=[
+            {"move_delay": move_delay},
+            {"z_offset": z_offset},
+            {"planning_time": 5.0},
+            {"velocity_scaling": 0.5},
+            {"group_name": "ur_manipulator"},
+        ],
+    )
     
     nodes_to_start = [
         # Isaac Lab bridge doit être lancé manuellement dans un terminal séparé
@@ -180,6 +268,9 @@ def generate_launch_description():
         ground_plane_node,
         obstacle_node,
         moveit_launch,
+        apriltag_node,     # Détection AprilTag
+        visualizer_node,   # Convertit detections -> markers + /apriltag_poses
+        auto_mover_node,   # Mouvement automatique entre tags
     ]
     
     return LaunchDescription(declared_arguments + nodes_to_start)
