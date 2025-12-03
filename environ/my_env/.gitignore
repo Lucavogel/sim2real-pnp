@@ -91,3 +91,7 @@ tests/
 
 # Dépôts Git externes (submodules non gérés)
 environ/ur10/src/apriltag_ros/
+
+# Descriptions URDF/YAML volumineuses (ROS2 packages standards)
+environ/ur10/src/Universal_Robots_ROS2_Description/
+environ/ur10/src/Universal_Robots_ROS2_Driver/
