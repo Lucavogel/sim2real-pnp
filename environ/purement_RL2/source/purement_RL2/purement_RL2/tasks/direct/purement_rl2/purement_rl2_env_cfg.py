@@ -45,7 +45,7 @@ class PurementRl2EnvCfg(DirectRLEnvCfg):
     
     # custom parameters (rest stays the same)
     ee_link_name = "ee_link"
-    start_joint_pos = [0.0, -1.57, 1.57, 0.0, 0.0, 0.0]
+    start_joint_pos = [0.0, -1.57, 1.57, 0.0, 0.0, 0.0]z
     
     workspace_x_limits = [-1.2, 1.5]
     workspace_y_limits = [-1.8, 1.8]

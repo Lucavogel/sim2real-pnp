@@ -114,7 +114,7 @@ def main():
     import omni.usd
     import omni.graph.core as og
 
-    usd_path = "/home/ajin/work2/my_env/env_v3.usd"
+    usd_path = "/home/ajin/work2/my_env/Origin2_asset.usd"
     print(f"[INFO] Loading USD file: {usd_path}")
     omni.usd.get_context().open_stage(usd_path)
     

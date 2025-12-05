@@ -88,7 +88,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "enable_apriltag",
-            default_value="true",
+            default_value="true",  # Changed from "true"
             description="Activer la détection AprilTag (les nodes sont lancés, pas de second RViz)",
         )
     )
@@ -97,7 +97,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "auto_move_tags",
-            default_value="true",
+            default_value="false",  # Changed from "true"
             description="Déplacer automatiquement le robot entre les AprilTags détectés",
         )
     )
@@ -242,7 +242,7 @@ def generate_launch_description():
         condition=IfCondition(enable_apriltag),
         parameters=[
             {"use_pnp_fallback": True},   # active le fallback solvePnP
-            {"tag_size": 0.08},           # taille du tag en m
+            {"tag_size": 0.10},           # taille du tag en m
         ],
     )
     

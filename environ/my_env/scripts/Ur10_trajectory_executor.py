@@ -86,7 +86,7 @@ def main():
     print("[INFO] ⚡ Mode performance activé (qualité réduite)")
     
     # Load USD
-    usd_path = "/home/ajin/workspace/sim2real-pnp/environ/my_env/source/env_v1.usd"
+    usd_path = "/home/ajin/work2/sim2real-pnp/environ/my_env/venv/env_v1.usd"
     print(f"[INFO] Loading USD: {usd_path}")
     omni.usd.get_context().open_stage(usd_path)
     
