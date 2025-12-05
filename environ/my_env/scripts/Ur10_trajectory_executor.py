@@ -1,21 +1,21 @@
 """
 Script IsaacLab simplifié pour exécuter des trajectoires pré-calculées
-SANS ROS Bridge - Approche optimale pour multi-environnements
+SANS ROS Bridge - Supporte dataset.npz généré par MoveIt
 
 Usage:
-    1. Générer trajectoires avec MoveIt:
+    1. Générer trajectoires avec MoveIt V2:
        cd ~/workspace/sim2real-pnp/environ/ur10
        source install/setup.bash
        ros2 launch ur_coppeliasim ur_isaaclab_moveit.launch.py
        
        # Autre terminal:
-       python3 src/ur_coppeliasim/scripts/generate_xy_trajectories.py --num-lines 100
+       python3 src/ur_coppeliasim/scripts/generate_moveit_dataset_v2.py --num-traj 100
     
-    2. Copier trajectories/ vers environ/my_env/scripts/
+    2. Copier dataset.npz vers environ/my_env/scripts/
     
     3. Lancer IsaacLab:
        cd ~/workspace/sim2real-pnp/environ/my_env/scripts
-       ./isaaclab.sh -p Ur10_trajectory_executor.py --num_envs 1
+       ./isaaclab.sh -p Ur10_trajectory_executor.py --dataset dataset.npz --num_envs 1
 """
 
 import argparse
@@ -25,10 +25,12 @@ import os
 from isaaclab.app import AppLauncher
 
 # Argparse
-parser = argparse.ArgumentParser(description="UR10 avec trajectoires pré-calculées")
+parser = argparse.ArgumentParser(description="UR10 avec trajectoires pré-calculées (dataset.npz)")
 parser.add_argument("--num_envs", type=int, default=1, help="Nombre d'environnements")
+parser.add_argument("--dataset", type=str, default=None, 
+                    help="Chemin vers dataset.npz (défaut: dataset.npz dans le dossier du script)")
 parser.add_argument("--trajectories_dir", type=str, default=None, 
-                    help="Dossier contenant les trajectoires .npy (par défaut: même dossier que ce script)")
+                    help="[LEGACY] Dossier contenant les trajectoires .npy (ancien format)")
 parser.add_argument("--apply_delta", action="store_true", 
                     help="Appliquer corrections delta aléatoires")
 parser.add_argument("--delta_std", type=float, default=0.01,
@@ -36,11 +38,13 @@ parser.add_argument("--delta_std", type=float, default=0.01,
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
-# Si trajectories_dir n'est pas spécifié, utiliser le dossier du script
-if args_cli.trajectories_dir is None:
+# Si dataset n'est pas spécifié, chercher dataset.npz dans le dossier du script
+if args_cli.dataset is None:
     script_dir = Path(__file__).parent
-    args_cli.trajectories_dir = str(script_dir / "trajectories")
-    print(f"[INFO] Chemin trajectoires: {args_cli.trajectories_dir}")
+    args_cli.dataset = str(script_dir / "dataset.npz")
+    print(f"[INFO] Chemin dataset: {args_cli.dataset}")
+else:
+    print(f"[INFO] Utilisation dataset: {args_cli.dataset}")
 
 # Launch Isaac Sim
 app_launcher = AppLauncher(args_cli)
@@ -63,38 +67,26 @@ def main():
     """Main function."""
     
     import omni.usd
-    import carb
+
+
     
-    # ============================================================
-    # RÉDUIRE LA QUALITÉ GRAPHIQUE POUR PC PEU PUISSANT
-    # ============================================================
-    settings = carb.settings.get_settings()
-    
-    # Limiter FPS drastiquement
-    settings.set("/app/runLoops/main/rateLimitEnabled", True)
-    settings.set("/app/runLoops/main/rateLimitFrequency", 10)  # 10 FPS au lieu de 60
-    
-    # Désactiver rendu temps réel (headless partiel)
-    settings.set("/app/renderer/enabled", False)  # Pas de rendu 3D
-    settings.set("/rtx/rendermode", "rtx")
-    settings.set("/rtx/post/aa/op", 0)  # Désactiver antialiasing
-    settings.set("/rtx/reflections/enabled", False)  # Pas de réflexions
-    settings.set("/rtx/shadows/enabled", False)  # Pas d'ombres
-    settings.set("/rtx/ambientOcclusion/enabled", False)  # Pas d'AO
-    settings.set("/rtx/gi/enabled", False)  # Pas de GI
-    
-    print("[INFO] ⚡ Mode performance activé (qualité réduite)")
+    print("[INFO] ⚡ Mode performance ULTRA activé (qualité minimale)")
+
     
     # Load USD
+<<<<<<< HEAD
     usd_path = "/home/ajin/work2/sim2real-pnp/environ/my_env/venv/env_v1.usd"
+=======
+    usd_path = "/home/ajin/workspace/sim2real-pnp/environ/my_env/source/env_v2.usd"
+>>>>>>> origin/luca
     print(f"[INFO] Loading USD: {usd_path}")
     omni.usd.get_context().open_stage(usd_path)
     
     # Setup simulation
     sim_cfg = sim_utils.SimulationCfg(
-        dt=0.02,  # Augmenter dt = moins de calculs (20ms au lieu de 10ms)
+        dt=0.05,  # 50ms = TRÈS LENT mais stable (20 Hz physics)
         device=args_cli.device,
-        render_interval=4  # Rendre seulement 1 frame sur 4
+        render_interval=8  # Rendre 1 frame sur 8 au lieu de 4
     )
     sim = SimulationContext(sim_cfg)
     sim.set_camera_view([3.0, 3.0, 2.5], [0.0, 0.0, 0.5])
@@ -109,35 +101,68 @@ def main():
     print("[INFO] Simulation initialized")
     
     # ============================================================
-    # CHARGER L'EXECUTOR DE TRAJECTOIRES
+    # CHARGER LES TRAJECTOIRES DEPUIS DATASET.NPZ
     # ============================================================
     print("\n" + "=" * 70)
-    print("📁 CHARGEMENT DES TRAJECTOIRES PRÉ-CALCULÉES")
+    print("📁 CHARGEMENT DES TRAJECTOIRES (dataset.npz)")
     print("=" * 70)
     
     try:
-        executor = TrajectoryExecutor(
-            robot=ur10,
-            num_envs=args_cli.num_envs,
-            trajectories_dir=args_cli.trajectories_dir
-        )
+        # Charger le fichier npz
+        dataset_path = Path(args_cli.dataset)
         
-        # Afficher info
-        info = executor.get_trajectory_info()
-        print(f"✅ {info['num_trajectories']} trajectoires disponibles")
+        if not dataset_path.exists():
+            raise ValueError(f"Dataset non trouvé: {dataset_path}")
         
-        # Initialiser tous les environnements avec trajectoires aléatoires
+        print(f"📂 Chargement: {dataset_path}")
+        dataset = np.load(dataset_path)
+        
+        # Extraire toutes les trajectoires (traj_000, traj_001, ...)
+        trajectories = []
+        for key in sorted(dataset.keys()):
+            if key.startswith('traj_'):
+                traj = dataset[key]
+                trajectories.append(torch.tensor(traj, dtype=torch.float32, device=ur10.device))
+                print(f"  ✅ {key}: {traj.shape[0]} points")
+        
+        if len(trajectories) == 0:
+            raise ValueError(f"Aucune trajectoire trouvée dans {dataset_path}")
+        
+        print(f"\n✅ {len(trajectories)} trajectoires chargées")
+        
+        # Afficher info workspace si disponible
+        if 'workspace' in dataset:
+            ws = dataset['workspace']
+            print(f"\n📐 Workspace:")
+            print(f"   X: [{ws[0]:.3f}, {ws[1]:.3f}]")
+            print(f"   Y: [{ws[2]:.3f}, {ws[3]:.3f}]")
+            print(f"   Z: {ws[4]:.3f}m (fixe)")
+        
+        # Variables pour gérer l'exécution
+        current_traj_idx = [0] * args_cli.num_envs  # Index trajectoire actuelle par env
+        current_step = [0] * args_cli.num_envs  # Step actuel dans la trajectoire
+        
+        # Fonction pour reset un env avec une nouvelle trajectoire
+        def reset_env(env_id):
+            # Choisir une trajectoire aléatoire
+            traj_idx = np.random.randint(0, len(trajectories))
+            current_traj_idx[env_id] = traj_idx
+            current_step[env_id] = 0
+            print(f"🔄 Env {env_id}: Nouvelle trajectoire traj_{traj_idx:03d} ({trajectories[traj_idx].shape[0]} points)")
+        
+        # Initialiser tous les environnements
         print("\n🎲 Initialisation des environnements...")
-        executor.reset_env(list(range(args_cli.num_envs)), random_choice=True)
+        for env_id in range(args_cli.num_envs):
+            reset_env(env_id)
         
-    except ValueError as e:
+    except Exception as e:
         print(f"\n❌ ERREUR: {e}")
-        print("\n💡 Pour générer les trajectoires:")
+        print("\n💡 Pour générer le dataset:")
         print("   1. Lancer MoveIt:")
         print("      ros2 launch ur_coppeliasim ur_isaaclab_moveit.launch.py")
-        print("   2. Générer trajectoires:")
-        print("      python3 generate_xy_trajectories.py --num-lines 100")
-        print("   3. Copier dossier trajectories/ ici")
+        print("   2. Générer dataset:")
+        print("      python3 src/ur_coppeliasim/scripts/generate_moveit_dataset_v2.py --num-traj 100")
+        print("   3. Copier dataset.npz ici")
         print("=" * 70)
         return
     
@@ -157,14 +182,14 @@ def main():
     print("✅ SYSTÈME PRÊT - UR10 avec Trajectoires Pré-calculées")
     print("=" * 70)
     print(f"🤖 Environnements: {args_cli.num_envs}")
-    print(f"📁 Trajectoires: {info['num_trajectories']}")
-    print(f"🎲 Correction delta: {'OUI' if args_cli.apply_delta else 'NON'}")
-    if args_cli.apply_delta:
+    print(f"📁 Trajectoires: {len(trajectories)}")
+    print(f"🎲 Bruit gaussien: {'OUI' if args_cli.delta_std > 0 else 'NON'}")
+    if args_cli.delta_std > 0:
         print(f"   Écart-type: {args_cli.delta_std:.3f} rad (~{np.degrees(args_cli.delta_std):.1f}°)")
     print("")
     print("⚙️  FONCTIONNEMENT:")
-    print("   - Chaque env exécute une trajectoire X-Y aléatoire")
-    print("   - Z et orientation fixes (stylo vertical)")
+    print("   - Chaque env exécute une trajectoire MoveIt aléatoire")
+    print("   - Trajectoires générées par OMPL planner")
     print("   - Auto-reset quand trajectoire terminée")
     print("   - Pas de ROS Bridge - 100% IsaacLab natif")
     print("")
@@ -179,11 +204,32 @@ def main():
     
     try:
         while simulation_app.is_running():
-            # Exécuter un step de trajectoire pour tous les envs
-            executor.step(
-                apply_delta=args_cli.apply_delta,
-                delta_std=args_cli.delta_std
-            )
+            # ========================================================
+            # SUIVI DES TRAJECTOIRES
+            # ========================================================
+            for env_id in range(args_cli.num_envs):
+                # Récupérer trajectoire et step actuel
+                traj = trajectories[current_traj_idx[env_id]]
+                step = current_step[env_id]
+                
+                # Trajectoire terminée → Reset
+                if step >= len(traj):
+                    reset_env(env_id)
+                    continue
+                
+                # Récupérer les 6 valeurs de joints + deltas aléatoires
+                joint_target = traj[step].clone()  # Copie pour ne pas modifier dataset
+                
+                # Ajouter bruit gaussien (variabilité)
+                if args_cli.delta_std > 0:
+                    noise = torch.randn(6, device=ur10.device) * args_cli.delta_std
+                    joint_target += noise
+                
+                # Appliquer la commande
+                ur10.set_joint_position_target(joint_target, env_ids=[env_id])
+                
+                # Incrémenter le step
+                current_step[env_id] += 1
             
             # Write & step simulation
             ur10.write_data_to_sim()
@@ -196,12 +242,11 @@ def main():
                 joint_pos_deg = np.degrees(joint_pos)
                 
                 # Afficher progrès
-                progress = executor.get_progress(0)
-                if progress is not None:
-                    print(f"[{count:05d}] Env 0 - Progression: {progress*100:.1f}% | "
-                          f"Joints: [{joint_pos_deg[0]:.1f}, {joint_pos_deg[1]:.1f}, "
-                          f"{joint_pos_deg[2]:.1f}, {joint_pos_deg[3]:.1f}, "
-                          f"{joint_pos_deg[4]:.1f}, {joint_pos_deg[5]:.1f}]°")
+                progress = current_step[0] / len(trajectories[current_traj_idx[0]]) * 100
+                print(f"[{count:05d}] Env 0 - traj_{current_traj_idx[0]:03d} {progress:.1f}% | "
+                      f"Joints: [{joint_pos_deg[0]:.1f}, {joint_pos_deg[1]:.1f}, "
+                      f"{joint_pos_deg[2]:.1f}, {joint_pos_deg[3]:.1f}, "
+                      f"{joint_pos_deg[4]:.1f}, {joint_pos_deg[5]:.1f}]°")
             
             count += 1
     
@@ -209,6 +254,7 @@ def main():
         print("\n[INFO] Interrupted by user")
     
     print("\n[INFO] Closing...")
+
 
 
 if __name__ == "__main__":
