@@ -5,7 +5,7 @@ import pickle
 import time
 
 # Dimensions de l'échiquier (nombre de coins intérieurs)
-chessboard_size = (9, 6)  # 9 coins par ligne, 6 par colonne
+chessboard_size = (8, 6)  # 9 coins par ligne, 6 par colonne
 square_size = 0.024  # taille d'une case en mètres (IMPORTANT: mesurez après impression!)
 
 print(f"⚠️ IMPORTANT: Vérifiez que vos carrés font bien {square_size*1000:.1f}mm")
@@ -23,7 +23,7 @@ objp *= square_size
 objpoints = []  # Points 3D dans le monde réel
 imgpoints = []  # Points 2D dans l'image
 
-cap = cv2.VideoCapture(0)  # 0 = première caméra USB ou PiCamera simulée
+cap = cv2.VideoCapture(4)  # 0 = première caméra USB ou PiCamera simulée
 
 if not cap.isOpened():
     print("Erreur : caméra non détectée.")

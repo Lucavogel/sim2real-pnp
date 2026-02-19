@@ -1,0 +1,24 @@
+/**:
+  ros__parameters:
+    image_transport: raw
+    family: 36h11
+    size: 0.10
+    max_hamming: 0
+
+    publish_tf: true
+    tf_prefix: ""
+    camera_frame: camera_optical_frame
+
+    # Pour éviter les galères au début (tolère des timestamps pas parfaits)
+    approximate_sync: true
+
+    detector:
+      threads: 2
+      decimate: 1.0
+      blur: 0.0
+      refine: true
+      sharpening: 0.25
+      debug: false
+
+    # Pose 3D (PnP) activée
+    pose_estimation_method: "pnp"

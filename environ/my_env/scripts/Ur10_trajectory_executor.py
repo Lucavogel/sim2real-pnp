@@ -33,7 +33,7 @@ parser.add_argument("--trajectories_dir", type=str, default=None,
                     help="[LEGACY] Dossier contenant les trajectoires .npy (ancien format)")
 parser.add_argument("--apply_delta", action="store_true", 
                     help="Appliquer corrections delta aléatoires")
-parser.add_argument("--delta_std", type=float, default=0.01,
+parser.add_argument("--delta_std", type=float, default=0.0,
                     help="Écart-type perturbation delta (radians)")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -41,7 +41,7 @@ args_cli = parser.parse_args()
 # Si dataset n'est pas spécifié, chercher dataset.npz dans le dossier du script
 if args_cli.dataset is None:
     script_dir = Path(__file__).parent
-    args_cli.dataset = str(script_dir / "dataset.npz")
+    args_cli.dataset = str(script_dir / "single_line.npz")
     print(f"[INFO] Chemin dataset: {args_cli.dataset}")
 else:
     print(f"[INFO] Utilisation dataset: {args_cli.dataset}")
@@ -57,7 +57,8 @@ import torch
 import isaaclab.sim as sim_utils
 from isaaclab.assets import Articulation
 from isaaclab.sim import SimulationContext
-from isaaclab_assets import UR10_CFG
+# from isaaclab_assets import UR10_CFG  # Ancien USD NVIDIA
+from ur10_ros2_cfg import UR10_ROS2_CFG  # ✅ Nouveau USD converti URDF
 
 # Importer notre executor
 from trajectory_executor import TrajectoryExecutor
@@ -66,30 +67,21 @@ from trajectory_executor import TrajectoryExecutor
 def main():
     """Main function."""
     
-    import omni.usd
-
-
-    
-    print("[INFO] ⚡ Mode performance ULTRA activé (qualité minimale)")
-
-    
-    # Load USD
-    usd_path = "/home/ajin/workspace/sim2real-pnp/environ/my_env/source/env_v2.usd"
-    print(f"[INFO] Loading USD: {usd_path}")
-    omni.usd.get_context().open_stage(usd_path)
-    
-    # Setup simulation
+    # Setup simulation (pas besoin de charger USD env_v2.usd)
     sim_cfg = sim_utils.SimulationCfg(
-        dt=0.05,  # 50ms = TRÈS LENT mais stable (20 Hz physics)
+        dt=0.01,  # 10ms = 100 Hz physics (plus rapide que 50ms)
         device=args_cli.device,
-        render_interval=8  # Rendre 1 frame sur 8 au lieu de 4
     )
     sim = SimulationContext(sim_cfg)
-    sim.set_camera_view([3.0, 3.0, 2.5], [0.0, 0.0, 0.5])
+    sim.set_camera_view([2.5, 2.5, 2.5], [0.0, 0.0, 0.5])
     
-    # Setup robot
-    robot_prim_path = "/World/Origin2/Table/Robot"
-    ur10_cfg = UR10_CFG.replace(prim_path=robot_prim_path)
+    # Ground plane
+    ground_cfg = sim_utils.GroundPlaneCfg()
+    ground_cfg.func("/World/Ground", ground_cfg)
+    
+    # Setup robot (nouveau USD converti)
+    print("\n🤖 Chargement UR10 (USD converti URDF)")
+    ur10_cfg = UR10_ROS2_CFG.replace(prim_path="/World/UR10")
     ur10 = Articulation(cfg=ur10_cfg)
     
     # Reset simulation
@@ -105,9 +97,9 @@ def main():
     
     try:
         # Charger le fichier npz
-        dataset_path = Path(args_cli.dataset)
+        dataset_path = "/home/ajin/workspace/sim2real-pnp/environ/my_env/scripts/single_line.npz"
         
-        if not dataset_path.exists():
+        if not os.path.exists(dataset_path):
             raise ValueError(f"Dataset non trouvé: {dataset_path}")
         
         print(f"📂 Chargement: {dataset_path}")
@@ -137,14 +129,23 @@ def main():
         # Variables pour gérer l'exécution
         current_traj_idx = [0] * args_cli.num_envs  # Index trajectoire actuelle par env
         current_step = [0] * args_cli.num_envs  # Step actuel dans la trajectoire
+        steps_on_current_waypoint = [0] * args_cli.num_envs  # Nombre de steps sur le waypoint actuel
+        steps_per_waypoint = 15  # ✅ Attendre 15 steps (0.15s à 100Hz) par waypoint - RAPIDE
         
         # Fonction pour reset un env avec une nouvelle trajectoire
         def reset_env(env_id):
             # Choisir une trajectoire aléatoire
             traj_idx = np.random.randint(0, len(trajectories))
             current_traj_idx[env_id] = traj_idx
-            current_step[env_id] = 0
-            print(f"🔄 Env {env_id}: Nouvelle trajectoire traj_{traj_idx:03d} ({trajectories[traj_idx].shape[0]} points)")
+            current_step[env_id] = -100  # -100 steps = 1 seconde d'attente (100Hz)
+            steps_on_current_waypoint[env_id] = 0  # Reset compteur waypoint
+            
+            # ✅ Reset robot au PREMIER POINT de la trajectoire (pas position fixe!)
+            # Évite les grands sauts verticaux
+            first_point = trajectories[traj_idx][0].unsqueeze(0)  # Shape (1, 6)
+            ur10.set_joint_position_target(first_point, env_ids=[env_id])
+            
+            print(f"🔄 Env {env_id}: Reset → traj_{traj_idx:03d} ({trajectories[traj_idx].shape[0]} points) dans 1s...")
         
         # Initialiser tous les environnements
         print("\n🎲 Initialisation des environnements...")
@@ -208,24 +209,35 @@ def main():
                 traj = trajectories[current_traj_idx[env_id]]
                 step = current_step[env_id]
                 
+                # Phase d'attente après reset (step négatif)
+                if step < 0:
+                    # Rester au premier point de la trajectoire
+                    first_point = trajectories[current_traj_idx[env_id]][0].unsqueeze(0)
+                    ur10.set_joint_position_target(first_point, env_ids=[env_id])
+                    current_step[env_id] += 1
+                    continue
+                
                 # Trajectoire terminée → Reset
                 if step >= len(traj):
                     reset_env(env_id)
                     continue
                 
-                # Récupérer les 6 valeurs de joints + deltas aléatoires
-                joint_target = traj[step].clone()  # Copie pour ne pas modifier dataset
-                
-                # Ajouter bruit gaussien (variabilité)
-                if args_cli.delta_std > 0:
-                    noise = torch.randn(6, device=ur10.device) * args_cli.delta_std
-                    joint_target += noise
-                
-                # Appliquer la commande
-                ur10.set_joint_position_target(joint_target, env_ids=[env_id])
-                
-                # Incrémenter le step
-                current_step[env_id] += 1
+                # ✅ Attendre N steps sur chaque waypoint avant de passer au suivant
+                if steps_on_current_waypoint[env_id] < steps_per_waypoint:
+                    # Continuer à envoyer le même waypoint
+                    joint_target = traj[step].clone()
+                    
+                    # Ajouter bruit gaussien (variabilité)
+                    if args_cli.delta_std > 0:
+                        noise = torch.randn(6, device=ur10.device) * args_cli.delta_std
+                        joint_target += noise
+                    
+                    ur10.set_joint_position_target(joint_target, env_ids=[env_id])
+                    steps_on_current_waypoint[env_id] += 1
+                else:
+                    # Passer au waypoint suivant
+                    current_step[env_id] += 1
+                    steps_on_current_waypoint[env_id] = 0
             
             # Write & step simulation
             ur10.write_data_to_sim()
@@ -233,16 +245,20 @@ def main():
             ur10.update(dt=sim.get_physics_dt())
             
             # Log périodique
-            if count % 500 == 0:
+            if count % 200 == 0:
                 joint_pos = ur10.data.joint_pos[0].cpu().numpy()
                 joint_pos_deg = np.degrees(joint_pos)
                 
-                # Afficher progrès
-                progress = current_step[0] / len(trajectories[current_traj_idx[0]]) * 100
-                print(f"[{count:05d}] Env 0 - traj_{current_traj_idx[0]:03d} {progress:.1f}% | "
-                      f"Joints: [{joint_pos_deg[0]:.1f}, {joint_pos_deg[1]:.1f}, "
-                      f"{joint_pos_deg[2]:.1f}, {joint_pos_deg[3]:.1f}, "
-                      f"{joint_pos_deg[4]:.1f}, {joint_pos_deg[5]:.1f}]°")
+                # Afficher progrès (ou attente si step < 0)
+                step = current_step[0]
+                if step < 0:
+                    print(f"[{count:05d}] Env 0 - ⏸️  ATTENTE reset ({-step} steps restants)")
+                else:
+                    progress = step / len(trajectories[current_traj_idx[0]]) * 100
+                    print(f"[{count:05d}] Env 0 - traj_{current_traj_idx[0]:03d} {progress:.1f}% | "
+                          f"Joints: [{joint_pos_deg[0]:.1f}, {joint_pos_deg[1]:.1f}, "
+                          f"{joint_pos_deg[2]:.1f}, {joint_pos_deg[3]:.1f}, "
+                          f"{joint_pos_deg[4]:.1f}, {joint_pos_deg[5]:.1f}]°")
             
             count += 1
     

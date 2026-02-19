@@ -20,6 +20,7 @@ class WorkspaceVisualizer(Node):
         
         # Publisher pour les marqueurs RViz
         self.marker_pub = self.create_publisher(MarkerArray, '/workspace_markers', 10)
+        self.zfixed = self.declare_parameter('z_fixed', 0.40).value  # Hauteur fixe du plan de travail
         
         # Timer pour publier périodiquement
         self.timer = self.create_timer(1.0, self.publish_markers)
@@ -27,11 +28,11 @@ class WorkspaceVisualizer(Node):
         # ===== WORKSPACE FIXE (même que dans generate_moveit_dataset_v2.py) =====
         # Inversé en +X pour être devant le robot (sur vrai robot: inverser X)
         self.workspace = {
-            'x_min': 0.8,     # Devant le robot (+X)
-            'x_max': 1.164,   # Devant le robot (+X)
+            'x_min': 0.7,     # Devant le robot (+X)
+            'x_max': 1.000,   # Devant le robot (+X)
             'y_min': -0.2,    # Bas
             'y_max': 0.2,     # Haut
-            'z_fixed': 0.20   # Hauteur fixe (20cm)
+            'z_fixed': self.zfixed   # Hauteur fixe (40cm)
         }
         
         self.get_logger().info("🎨 Visualiseur de workspace démarré")

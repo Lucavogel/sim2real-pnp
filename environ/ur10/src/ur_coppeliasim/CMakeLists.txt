@@ -27,9 +27,10 @@ install(PROGRAMS
   scripts/add_ground_plane.py
   scripts/add_obstacle.py
   scripts/isaaclab_bridge.py
-  scripts/simple_isaaclab_test.py
-  scripts/apriltag_visualizer.py
-  scripts/apriltag_auto_mover.py
+  scripts/print_detections.py
+  scripts/visualize_workspace.py
+  scripts/generate_moveit_dataset_v2.py
+  scripts/fake_joint_publisher.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

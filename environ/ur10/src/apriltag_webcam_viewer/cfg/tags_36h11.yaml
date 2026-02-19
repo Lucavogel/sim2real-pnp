@@ -1,0 +1,20 @@
+/camera/apriltag:
+  ros__parameters:
+    image_transport: raw
+    family: 36h11
+    size: 0.1
+    max_hamming: 0
+    pose_estimation_method: "pnp"
+
+    detector:
+      threads: 2
+      decimate: 2.0
+      blur: 0.0
+      refine: true          # <-- IMPORTANT: bool (true/false)
+      sharpening: 0.25
+      debug: false          # <-- bool aussi
+
+    tag:
+      ids: [0,1,2,3]
+      frames: ["tag36h11:0", "tag36h11:1", "tag36h11:2", "tag36h11:3"]
+      sizes: [0.1, 0.1, 0.1, 0.1]
