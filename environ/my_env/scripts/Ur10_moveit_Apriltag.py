@@ -317,7 +317,11 @@ def main():
     settings.set("/app/runLoops/main/rateLimitFrequency", 20)  # 20 FPS au lieu de 60
     
     # Load USD stage FIRST (le Action Graph ROS2 est déjà dedans!)
+<<<<<<< HEAD
+    usd_path = "/home/ajin/work2/sim2real-pnp/environ/my_env/venv/env_v1.usd"
+=======
     usd_path = "/home/ajin/workspace/sim2real-pnp/environ/my_env/source/env_v2.usd"
+>>>>>>> origin/luca
     print(f"[INFO] Loading USD file: {usd_path}")
     omni.usd.get_context().open_stage(usd_path)
     
