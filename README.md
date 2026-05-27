@@ -1,4 +1,4 @@
-<div align="center">
+
   
 # Sim-to-Real: Robust Trajectory Tracking with Reinforcement Learning
 **Enhancing UR10 Robotic Control Accuracy across Isaac Lab, MuJoCo, and Physical Hardware**
@@ -19,6 +19,8 @@ The result is a highly robust control policy that effortlessly transfers from si
 
 ### 🎥 Video Demonstration
 
+<img width="942" height="514" alt="deploy" src="https://github.com/user-attachments/assets/6b7eea64-4881-46f1-be02-9e81ad91c3a7" />
+<div align="center">
 
 ### 📊 Performance Summary
 Here is the quantitative comparison showing the tracking improvements (RL vs Baseline):
